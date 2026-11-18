@@ -47,6 +47,8 @@ Once it connects, the serial log prints the address. Open `http://espicu.local/`
 
 ## Configuration
 
+Wi-Fi credentials, the web login and the ntfy token live in `main/config.h`, which is gitignored so they never get committed. The repo ships `main/config.h.example` with placeholder values instead. Copy it to `main/config.h` and fill in your own values before the first build; the build fails without it.
+
 `main/config.h` holds the things that should never be in the web UI:
 
 | Define       | Purpose                                                       |
