@@ -1,0 +1,40 @@
+{
+	"info": "ESP-ICU case, XIAO ESP32-S3 Sense + camera\nouter  36.0 x 21.4 x 14.9 mm, flat top\nSMA bulkhead out the antenna end, hole 6.6 in 2.0 wall\nlens 0.1 below top face\nheatsink cutout 21.5 x 11.0 in floor\nwall 1.6 (USB end 1.2) floor 0.8\nfit 0.2 board, 0.1 tongue",
+	"parts": [
+		{
+			"name": "board stack (Seeed STEP)",
+			"file": "board.stl",
+			"color": "#2a6b3a",
+			"explode": 0.4
+		},
+		{
+			"name": "SMA bulkhead (generic, preview)",
+			"file": "sma.stl",
+			"color": "#d4af37",
+			"explode": 1.6
+		},
+		{
+			"name": "tray",
+			"file": "tray.stl",
+			"color": "#c9ccd1",
+			"explode": 0,
+			"download": true
+		},
+		{
+			"name": "lid",
+			"file": "lid.stl",
+			"color": "#e0873a",
+			"explode": 1.6,
+			"opacity": 0.85,
+			"download": true
+		},
+		{
+			"name": "print plate (tray + flipped lid)",
+			"file": "print_plate.stl",
+			"color": "#8aa0c8",
+			"explode": 0,
+			"visible": false,
+			"download": true
+		}
+	]
+}
