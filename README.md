@@ -154,7 +154,3 @@ Up to 4 streams and downloads can run at once.
 | `case/ref/`          | Seeed STEP, KiCad and DXF sources the model is built from  |
 
 Take the microSD card out before sliding the lid on. The reset button is not reachable once the case is closed.
-
-## License
-
-[ISC](LICENSE)
