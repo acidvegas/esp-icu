@@ -12,6 +12,6 @@
 #define HOSTNAME  "espicu"
 
 // Motion notifications through ntfy. Leave NTFY_TOKEN empty to disable them.
-#define NTFY_URL   "https://push.supernets.org"
-#define NTFY_TOPIC "ESP-ICU"
+#define NTFY_URL   "https://ntfy.example.com"
+#define NTFY_TOPIC "your-topic"
 #define NTFY_TOKEN ""
