@@ -1,0 +1,11 @@
+main/config.h
+build/
+managed_components/
+sdkconfig
+sdkconfig.old
+case/.venv/
+*.log
+__pycache__/
+case/print/plate_1.gcode
+case/print/result.json
+case/ref/*.zip

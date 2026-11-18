@@ -1,0 +1,17 @@
+// ESP-ICU - Developed by acidvegas in C (https://github.com/acidvegas)
+// config.h.example
+//
+// Copy to config.h and fill in. config.h is gitignored.
+
+#pragma once
+
+#define WIFI_SSID "your-ssid"
+#define WIFI_PASS "your-wifi-password"
+#define WEB_USER  "admin"
+#define WEB_PASS  "change-me"
+#define HOSTNAME  "espicu"
+
+// Motion notifications through ntfy. Leave NTFY_TOKEN empty to disable them.
+#define NTFY_URL   "https://push.supernets.org"
+#define NTFY_TOPIC "ESP-ICU"
+#define NTFY_TOKEN ""
