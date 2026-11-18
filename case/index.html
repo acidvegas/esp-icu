@@ -1,0 +1,94 @@
+<!-- ESP-ICU - Developed by acidvegas in HTML (https://github.com/acidvegas) -->
+<!-- index.html -->
+
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESP-ICU Case</title>
+<style>
+	html, body { margin: 0; height: 100%; background: #15171a; color: #ddd; font: 13px system-ui, sans-serif; overflow: hidden; }
+	#ui { position: absolute; top: 10px; left: 10px; background: #000a; padding: 10px 12px; border-radius: 8px; max-width: 320px; }
+	#ui h1 { font-size: 14px; margin: 0 0 6px; }
+	#ui label { display: block; margin: 3px 0; cursor: pointer; }
+	#ui .row { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+	#ui button { background: #333; color: #ddd; border: 1px solid #555; border-radius: 4px; padding: 3px 8px; cursor: pointer; }
+	#ui a { color: #8cf; }
+	#dims { margin-top: 8px; white-space: pre; font-family: ui-monospace, monospace; font-size: 12px; color: #aaa; }
+</style>
+</head>
+<body>
+<div id="ui">
+	<h1>ESP-ICU case</h1>
+	<div id="toggles"></div>
+	<label><input type="range" id="explode" min="0" max="20" value="8"> explode</label>
+	<div class="row">
+		<button data-view="iso">iso</button><button data-view="top">top</button><button data-view="usb">usb end</button><button data-view="side">side</button>
+	</div>
+	<div id="dims"></div>
+	<div class="row" id="dl"></div>
+</div>
+<script type="importmap">
+{ "imports": {
+	"three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+	"three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+
+const meta = await (await fetch('stl/parts.json?' + Date.now())).json();
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(devicePixelRatio);
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x15171a);
+const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.1, 1000);
+const controls = new OrbitControls(camera, renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x333344, 1.2));
+const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(40, -60, 80); scene.add(sun);
+const fill = new THREE.DirectionalLight(0xffffff, 0.6); fill.position.set(-50, 40, -30); scene.add(fill);
+const grid = new THREE.GridHelper(60, 60, 0x333333, 0x222222); grid.rotation.x = Math.PI / 2; grid.position.z = -0.01; scene.add(grid);
+
+const loader = new STLLoader();
+const objs = {};
+for (const p of meta.parts) {
+	const geo = await new Promise(r => loader.load('stl/' + p.file + '?' + Date.now(), r));
+	geo.computeVertexNormals();
+	const mat = new THREE.MeshStandardMaterial({ color: p.color, roughness: 0.6, metalness: 0.05, transparent: p.opacity < 1, opacity: p.opacity ?? 1 });
+	const m = new THREE.Mesh(geo, mat);
+	m.userData = p;
+	scene.add(m);
+	objs[p.name] = m;
+	const lab = document.createElement('label');
+	lab.innerHTML = `<input type="checkbox" ${p.visible === false ? '' : 'checked'}> ${p.name}`;
+	lab.firstChild.onchange = e => m.visible = e.target.checked;
+	m.visible = p.visible !== false;
+	document.getElementById('toggles').appendChild(lab);
+	if (p.download) {
+		const a = document.createElement('a'); a.href = 'stl/' + p.file; a.textContent = p.file; a.download = p.file;
+		document.getElementById('dl').appendChild(a);
+	}
+}
+document.getElementById('dims').textContent = meta.info;
+
+const explode = document.getElementById('explode');
+const applyExplode = () => { for (const m of Object.values(objs)) m.position.z = (m.userData.explode ?? 0) * explode.value; };
+explode.oninput = applyExplode; applyExplode();
+
+const views = { iso: [45, -55, 40], top: [0, -0.01, 80], usb: [70, 0, 10], side: [0, -70, 10] };
+const setView = v => { camera.position.set(...views[v]); camera.up.set(0, 0, 1); controls.target.set(0, 0, 4); controls.update(); };
+document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => setView(b.dataset.view));
+setView('iso');
+
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+</script>
+</body>
+</html>
