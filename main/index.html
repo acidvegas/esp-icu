@@ -1,0 +1,561 @@
+<!-- ESP-ICU - Developed by acidvegas in HTML (https://github.com/acidvegas) -->
+<!-- index.html -->
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESP-ICU</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2313171c'/%3E%3Cpath d='M4 16s4.5-8 12-8 12 8 12 8-4.5 8-12 8S4 16 4 16z' fill='none' stroke='%233b82f6' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='4.5' fill='%233b82f6'/%3E%3Ccircle cx='24.5' cy='7.5' r='3' fill='%23ef4444'/%3E%3C/svg%3E">
+<style>
+:root{
+	--bg:#0b0d10;--surface:#13171c;--raised:#1a1f26;--line:#242a32;--line2:#2e3540;
+	--fg:#e8ebef;--mut:#8b95a3;--dim:#5d6672;
+	--acc:#3b82f6;--red:#ef4444;--amber:#f59e0b;--green:#22c55e;
+	--r:12px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,input,select{font:inherit;color:inherit}
+[hidden]{display:none!important}
+
+/* Top bar */
+.top{position:sticky;top:0;z-index:5;background:rgba(11,13,16,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.bar{max-width:1040px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.brand{font-weight:650;letter-spacing:.3px;font-size:16px;display:flex;align-items:center;gap:8px}
+.brand i{width:9px;height:9px;border-radius:50%;background:var(--dim);display:inline-block}
+.brand i.ok{background:var(--green);box-shadow:0 0 8px var(--green)}
+.tabs{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px;margin-left:8px}
+.tabs button{border:0;background:none;color:var(--mut);padding:5px 14px;border-radius:7px;cursor:pointer}
+.tabs button.on{background:var(--raised);color:var(--fg);box-shadow:0 1px 0 var(--line2) inset}
+.chips{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+.chip{font-size:12px;padding:3px 10px;border-radius:99px;background:var(--surface);border:1px solid var(--line);color:var(--mut);white-space:nowrap}
+.chip.rec{color:#fff;border-color:var(--red);background:rgba(239,68,68,.15)}
+.chip.rec::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--red);margin-right:6px;animation:blink 1.2s infinite}
+.chip.mo{color:#fff;border-color:var(--amber);background:rgba(245,158,11,.14)}
+.chip.good{color:#4ade80;border-color:rgba(74,222,128,.45)}
+.chip.ok{color:#fde047;border-color:rgba(253,224,71,.5)}
+.chip.meh{color:#fb923c;border-color:rgba(251,146,60,.6)}
+.chip.bad{color:#fff;border-color:var(--red);background:rgba(239,68,68,.2)}
+@keyframes blink{50%{opacity:.25}}
+.icon{width:34px;height:34px;display:grid;place-items:center;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--mut);cursor:pointer}
+.icon:hover{color:var(--fg);border-color:var(--line2)}
+
+main{max-width:1040px;margin:0 auto;padding:16px;display:grid;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+
+/* Views */
+.view{position:relative;background:#000;border-radius:10px;overflow:hidden;margin:0 auto}
+.rot{position:absolute;left:50%;top:50%}
+.rot img,.rot canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#ov{pointer-events:none}
+#ov.edit{pointer-events:auto;cursor:crosshair}
+
+/* Buttons */
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:7px;background:var(--raised);border:1px solid var(--line2);border-radius:9px;padding:7px 13px;cursor:pointer;text-decoration:none;color:var(--fg)}
+.btn:hover{border-color:#3a4351}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.danger{color:var(--red)}
+.btn.rec{border-color:rgba(239,68,68,.6)}
+.btn.rec b{width:9px;height:9px;border-radius:50%;background:var(--red)}
+.btn.recon{background:var(--red);border-color:var(--red);color:#fff}
+.btn.recon b{border-radius:2px;background:#fff}
+.btn.sm{padding:5px 10px;font-size:13px}
+.spacer{flex:1}
+.muted{color:var(--mut)}
+.small{font-size:12px}
+
+/* Switch */
+input.sw{appearance:none;width:36px;height:20px;border-radius:99px;background:var(--line2);position:relative;cursor:pointer;flex:none;transition:background .15s}
+input.sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s}
+input.sw:checked{background:var(--acc)}
+input.sw:checked::after{left:18px}
+.toggle{display:inline-flex;align-items:center;gap:8px;color:var(--mut);cursor:pointer}
+
+.meter{flex:1;min-width:120px;height:6px;background:var(--bg);border-radius:4px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--acc);width:0}
+
+/* Recordings */
+.rec-grid{display:grid;grid-template-columns:180px 1fr;gap:14px;align-items:start}
+.rec-grid>*{min-width:0}
+.days{display:grid;gap:4px}
+.days button{text-align:left;border:1px solid transparent;background:none;color:var(--mut);padding:7px 10px;border-radius:8px;cursor:pointer}
+.days button:hover{background:var(--raised)}
+.days button.on{background:var(--raised);border-color:var(--line2);color:var(--fg)}
+.days button span{float:right;color:var(--dim);font-size:12px}
+.clips{display:grid;gap:6px}
+.clip{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.clip.on{border-color:var(--acc)}
+.clip .t{font-variant-numeric:tabular-nums;font-weight:600;min-width:70px}
+.ck{appearance:none;flex:none;width:18px;height:18px;margin:0;border:1.5px solid var(--line2);border-radius:5px;background:var(--bg);cursor:pointer;display:grid;place-items:center;transition:background .12s,border-color .12s}
+.ck:hover{border-color:#4a5363}
+.ck:checked{background:var(--acc);border-color:var(--acc)}
+.ck:checked::after{content:"";width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:translate(0,-1px) rotate(45deg)}
+.ck:disabled{opacity:.3;cursor:default}
+.thumb{width:56px;height:42px;object-fit:cover;border-radius:6px;background:#000;cursor:pointer}
+.tag.s{color:var(--green);border-color:rgba(34,197,94,.4)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--raised);border:1px solid var(--line2);border-radius:10px;padding:9px 16px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:20}
+.sdcard{display:flex;align-items:center;gap:10px;margin-bottom:14px;color:var(--mut);font-size:13px}
+.selall{display:inline-flex;align-items:center;gap:8px;color:var(--mut);cursor:pointer;font-size:13px}
+.tag{font-size:11px;padding:1px 8px;border-radius:99px;border:1px solid var(--line2);color:var(--mut)}
+.tag.m{color:var(--amber);border-color:rgba(245,158,11,.4)}
+.tag.r{color:var(--acc);border-color:rgba(59,130,246,.4)}
+.tag.l{color:var(--red);border-color:rgba(239,68,68,.4)}
+.clip .act{margin-left:auto;display:flex;gap:6px}
+.empty{color:var(--mut);padding:24px;text-align:center;border:1px dashed var(--line2);border-radius:10px}
+h3{margin:0 0 10px;font-size:12px;letter-spacing:.8px;text-transform:uppercase;color:var(--mut);font-weight:600}
+#seek{flex:1;min-width:120px;accent-color:var(--acc)}
+#ptime{font-variant-numeric:tabular-nums}
+
+/* Settings dialog */
+dialog{border:1px solid var(--line2);border-radius:14px;background:var(--surface);color:var(--fg);padding:0;width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 48px)}
+dialog::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
+.dh{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)}
+.dh b{font-size:15px}
+.db{padding:4px 18px 8px;overflow:auto;max-height:calc(100vh - 190px)}
+.df{display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:12px 18px;border-top:1px solid var(--line)}
+.sec{padding:12px 0;border-bottom:1px solid var(--line)}
+.sec:last-child{border-bottom:0}
+.field{display:flex;align-items:center;gap:12px;padding:7px 0}
+.field>span:first-child{flex:1}
+.field small{display:block;color:var(--dim);font-size:12px}
+.field input:not(.sw),.field select{background:var(--bg);border:1px solid var(--line2);border-radius:8px;padding:6px 9px;width:150px}
+.field input[type=number]{width:90px;-moz-appearance:textfield;appearance:textfield}
+.field input[type=number]::-webkit-inner-spin-button,.field input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.field input[type=range]{width:150px;padding:0;border:0;background:none;accent-color:var(--acc)}
+.field .val{min-width:28px;text-align:right;color:var(--mut);font-variant-numeric:tabular-nums}
+
+@media (max-width:700px){
+	.rec-grid{grid-template-columns:1fr}
+	.days{grid-auto-flow:column;grid-auto-columns:max-content;overflow-x:auto}
+	.chips{order:3;width:100%;margin-left:0}
+	.field input:not(.sw),.field select{width:130px}
+	.field input[type=range]{width:110px}
+	.clip .act{margin-left:0}
+}
+</style>
+</head>
+<body>
+<div class="top"><div class="bar">
+	<div class="brand"><i id="dot"></i>ESP-ICU</div>
+	<div class="tabs"><button data-tab="live" class="on">Live</button><button data-tab="recs">Storage</button></div>
+	<div class="chips">
+		<span class="chip rec" id="recp" hidden></span>
+		<span class="chip mo" id="mop" hidden>motion</span>
+		<span class="chip" id="fps">--</span>
+		<span class="chip" id="rssi">--</span>
+		<span class="chip" id="temp" title="ESP32 chip temperature">--</span>
+	</div>
+	<button class="icon" id="gear" title="Settings" aria-label="Settings">
+		<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+	</button>
+</div></div>
+
+<main>
+	<!-- Live -->
+	<section id="tab-live" class="card">
+		<div class="view" id="lv"><div class="rot"><img id="live" alt="live view"><canvas id="ov"></canvas></div></div>
+		<div class="row" style="margin-top:12px">
+			<button class="btn rec" id="recbtn"><b></b><span>Record</span></button>
+			<button class="btn" id="snapbtn">Snapshot</button>
+			<span id="zonebar"><button class="btn" id="zonebtn">Edit zones</button></span>
+			<span id="zonectl" hidden class="row">
+				<button class="btn sm" id="zall">All</button>
+				<button class="btn sm" id="znone">None</button>
+				<button class="btn sm primary" id="zsave">Save zones</button>
+				<button class="btn sm" id="zcancel">Cancel</button>
+			</span>
+			<span class="spacer"></span>
+			<span id="score" class="muted small"></span>
+			<label class="toggle"><input type="checkbox" class="sw" id="showm"> Show motion</label>
+		</div>
+	</section>
+
+	<!-- Storage -->
+	<section id="tab-recs" hidden>
+		<div class="card" id="player" hidden style="margin-bottom:14px">
+			<div class="row" style="margin-bottom:10px"><b id="ptitle">Playback</b><span class="spacer"></span><a class="btn sm" id="pdl" download>Download</a><button class="btn sm" id="pclose">Close</button></div>
+			<div class="view" id="pvw"><div class="rot"><img id="pv" alt="playback"></div></div>
+			<audio id="pa" preload="none"></audio>
+			<div class="row" id="pctl" style="margin-top:12px">
+				<button class="btn sm" id="pplay">Pause</button>
+				<input type="range" id="seek" min="0" value="0">
+				<span id="ptime" class="muted small">0:00</span>
+				<select id="speed" class="btn sm"><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="2">2x</option><option value="4">4x</option><option value="8">8x</option></select>
+			</div>
+		</div>
+		<div class="card">
+			<div class="sdcard"><span>SD card</span><div class="meter"><i id="sdbar"></i></div><span id="sdtxt">--</span></div>
+			<div class="rec-grid">
+			<div><h3>Days</h3><div class="days" id="days"></div></div>
+			<div>
+				<div class="row" style="margin-bottom:10px"><h3 style="margin:0" id="dayname">Clips</h3><span class="spacer"></span><button class="btn sm" id="refresh">Refresh</button></div>
+				<div class="row" id="bulk" style="margin-bottom:10px" hidden><label class="selall"><input type="checkbox" class="ck" id="selall"> Select all</label><span class="spacer"></span><button class="btn sm danger" id="delsel" disabled>Delete selected</button></div>
+				<div class="clips" id="clips"></div>
+			</div>
+			</div>
+		</div>
+	</section>
+</main>
+
+<!-- Settings -->
+<dialog id="dlg">
+	<form id="settings">
+		<div class="dh"><b>Settings</b><span class="spacer"></span><button type="button" class="icon" data-close aria-label="Close">&#10005;</button></div>
+		<div class="db">
+			<div class="sec">
+				<h3>Recording</h3>
+				<label class="field"><span>Record on motion<small>Start a clip automatically when motion is detected</small></span><input type="checkbox" class="sw" name="motion_record"></label>
+				<label class="field"><span>Frame rate<small>Frames per second saved to clips</small></span><input type="number" name="record_fps" min="1" max="30"></label>
+				<label class="field"><span>Pre-roll<small>Seconds kept from before motion started</small></span><input type="number" name="pre_seconds" min="0" max="10"></label>
+				<label class="field"><span>Post-roll<small>Seconds to keep recording after motion stops</small></span><input type="number" name="post_seconds" min="1" max="120"></label>
+				<label class="field"><span>Max clip length<small>Minutes before a recording is split</small></span><input type="number" name="clip_minutes" min="1" max="60"></label>
+				<label class="field"><span>Keep recordings<small>Days, 0 keeps everything until the card fills</small></span><input type="number" name="retention_days" min="0" max="3650"></label>
+			</div>
+			<div class="sec">
+				<h3>Motion</h3>
+				<label class="field"><span>Sensitivity<small>Higher catches smaller changes</small></span><input type="range" name="sensitivity" min="1" max="100"><span class="val" id="sensv"></span></label>
+				<label class="field"><span>Minimum size<small>Zone cells that must change <i>(16x12 grid)</i></small></span><input type="number" name="min_cells" min="1" max="192"></label>
+			</div>
+			<div class="sec">
+				<h3>Notifications</h3>
+				<label class="field"><span>Notify on motion<small id="ntfyhint">Push a snapshot through ntfy when motion starts</small></span><input type="checkbox" class="sw" name="notify_motion"></label>
+				<label class="field"><span>Cooldown<small>Minimum seconds between notifications</small></span><input type="number" name="notify_cooldown" min="0" max="3600"></label>
+			</div>
+			<div class="sec">
+				<h3>Camera</h3>
+				<label class="field"><span>Resolution</span><select name="framesize"></select></label>
+				<label class="field"><span>JPEG quality<small>Lower is sharper and bigger</small></span><input type="number" name="quality" min="4" max="63"></label>
+				<label class="field"><span>Rotate view<small>Browser only, recordings are not rotated</small></span><select name="rotate"><option value="0">0&deg;</option><option value="90">90&deg;</option><option value="180">180&deg;</option><option value="270">270&deg;</option></select></label>
+				<label class="field"><span>Flip vertical</span><input type="checkbox" class="sw" name="vflip"></label>
+				<label class="field"><span>Mirror</span><input type="checkbox" class="sw" name="hmirror"></label>
+				<label class="field"><span>Brightness<small>0 is the tuned default</small></span><select name="brightness"><option value="-2">-2</option><option value="-1">-1</option><option value="0">0</option><option value="1">+1</option><option value="2">+2</option></select></label>
+				<label class="field"><span>Contrast<small></small></span><select name="contrast"><option value="-2">-2</option><option value="-1">-1</option><option value="0">0</option><option value="1">+1</option><option value="2">+2</option></select></label>
+				<label class="field"><span>Saturation<small></small></span><select name="saturation"><option value="-2">-2</option><option value="-1">-1</option><option value="0">0</option><option value="1">+1</option><option value="2">+2</option></select></label>
+				<label class="field"><span>Exposure<small>Auto exposure target</small></span><select name="ae_level"><option value="-2">-2</option><option value="-1">-1</option><option value="0">0</option><option value="1">+1</option><option value="2">+2</option></select></label>
+				<label class="field"><span>White balance</span><select name="wb_mode"><option value="0">Auto</option><option value="1">Sunny</option><option value="2">Cloudy</option><option value="3">Office</option><option value="4">Home</option></select></label>
+				<label class="field"><span>Night mode<small>Higher gain for low light, more grain</small></span><input type="checkbox" class="sw" name="night"></label>
+			</div>
+			<div class="sec">
+				<h3>Audio</h3>
+				<label class="field"><span>Record audio<small>Mic track in clips, also plays back here</small></span><input type="checkbox" class="sw" name="audio"></label>
+				<label class="field"><span>Mic gain<small>Digital gain, 1 to 16</small></span><input type="number" name="mic_gain" min="1" max="16"></label>
+			</div>
+			<div class="sec">
+				<h3>System</h3>
+				<label class="field"><span>Timezone<small>POSIX TZ, e.g. EST5EDT,M3.2.0,M11.1.0</small></span><input name="tz"></label>
+				<label class="field"><span>Wi-Fi TX power<small>dBm, 8 to 20. Lower if uploads stall</small></span><input type="number" name="tx_power" min="8" max="20"></label>
+			</div>
+		</div>
+		<div class="df"><span id="saved" class="muted small"></span><span class="spacer"></span><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Save</button></div>
+	</form>
+</dialog>
+
+<script>
+const $ = s => document.querySelector(s);
+const api = (u, body) => fetch(u, body === undefined ? {} : {method: 'POST', headers: {'X-Req': '1', 'Content-Type': 'application/x-www-form-urlencoded'}, body})
+	.then(r => { if (!r.ok) return r.text().then(t => { throw new Error(t || r.status); }); return r.json(); });
+const bits = h => { const o = []; for (let i = 0; i < h.length; i += 2) { const b = parseInt(h.substr(i, 2), 16); for (let k = 0; k < 8; k++) o.push((b >> k) & 1); } return o; };
+const tohex = a => { let s = ''; for (let i = 0; i < a.length; i += 8) { let b = 0; for (let k = 0; k < 8; k++) if (a[i + k]) b |= 1 << k; s += b.toString(16).padStart(2, '0'); } return s; };
+const dur = s => { s = Math.floor(s); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = String(s % 60).padStart(2, '0'); return h ? `${h}:${String(m).padStart(2, '0')}:${x}` : `${m}:${x}`; };
+const gb = b => (b / 1073741824).toFixed(1);
+const dayLabel = d => new Date(+d.slice(0, 4), +d.slice(4, 6) - 1, +d.slice(6)).toLocaleDateString(undefined, {weekday: 'short', month: 'short', day: 'numeric'});
+const clipTime = f => `${f.slice(0, 2)}:${f.slice(2, 4)}:${f.slice(4, 6)}`;
+
+let S = {cols: 16, rows: 12, rotate: 0}, mask = [], saved = [], cells = [], editing = false, recording = false, tab = 'live';
+
+// Tabs: the live stream only runs while the Live tab is showing, so it never competes with playback.
+const live = $('#live'), ov = $('#ov'), octx = ov.getContext('2d');
+const startLive = () => { live.src = '/stream?' + Date.now(); };
+const stopLive = () => live.removeAttribute('src');
+function showTab(t) {
+	tab = t;
+	document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+	$('#tab-live').hidden = t !== 'live';
+	$('#tab-recs').hidden = t !== 'recs';
+	if (t === 'live') { closePlayer(); startLive(); relayout(); } else { stopLive(); loadDays(); }
+}
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+live.onerror = () => { if (tab === 'live' && !document.hidden) setTimeout(() => { if (tab === 'live') startLive(); }, 2000); };
+document.addEventListener('visibilitychange', () => { if (document.hidden) stopLive(); else if (tab === 'live') startLive(); });
+
+// Rotated views: .view is sized to the rotated picture and .rot holds the unrotated image, turned about its center.
+function layout(view, ar) {
+	const r = +S.rotate || 0, side = r % 180 !== 0, rot = view.firstElementChild;
+	const cs = getComputedStyle(view.parentElement);
+	let w = view.parentElement.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight), h = side ? w * ar : w / ar;
+	const maxH = window.innerHeight * 0.72;
+	if (h > maxH) { w *= maxH / h; h = maxH; }
+	view.style.width = w + 'px';
+	view.style.height = h + 'px';
+	rot.style.width = (side ? h : w) + 'px';
+	rot.style.height = (side ? w : h) + 'px';
+	rot.style.transform = `translate(-50%,-50%) rotate(${r}deg)`;
+}
+function liveAspect() { const sz = (S.sizes || []).find(([v]) => v == S.framesize); if (!sz) return 4 / 3; const [w, h] = sz[1].split('x').map(Number); return w / h; }
+function relayout() { if (tab === 'live') layout($('#lv'), liveAspect()); if (P.open) layout($('#pvw'), P.w / P.h || liveAspect()); draw(); }
+window.addEventListener('resize', relayout);
+
+// Motion and zone overlay
+function draw() {
+	const w = ov.clientWidth, h = ov.clientHeight;
+	if (!w || !h) return;
+	if (ov.width !== w || ov.height !== h) { ov.width = w; ov.height = h; }
+	octx.clearRect(0, 0, w, h);
+	const cw = w / S.cols, ch = h / S.rows, show = $('#showm').checked;
+	for (let i = 0; i < S.cols * S.rows; i++) {
+		const x = (i % S.cols) * cw, y = Math.floor(i / S.cols) * ch;
+		if (!mask[i]) { octx.fillStyle = editing ? 'rgba(0,0,0,.65)' : 'rgba(0,0,0,.45)'; octx.fillRect(x, y, cw, ch); }
+		if (show && cells[i] && !editing) { octx.fillStyle = mask[i] ? 'rgba(239,68,68,.35)' : 'rgba(255,255,255,.12)'; octx.fillRect(x, y, cw, ch); }
+	}
+	if (editing) {
+		octx.strokeStyle = 'rgba(255,255,255,.3)';
+		octx.beginPath();
+		for (let c = 1; c < S.cols; c++) { octx.moveTo(c * cw, 0); octx.lineTo(c * cw, h); }
+		for (let r = 1; r < S.rows; r++) { octx.moveTo(0, r * ch); octx.lineTo(w, r * ch); }
+		octx.stroke();
+	}
+}
+$('#showm').onchange = draw;
+
+// Zone editing: drag to paint cells on or off, starting from the opposite of the first cell touched.
+// Pointer positions are rotated back into the unrotated image's coordinates.
+let paint = null;
+function cellAt(e) {
+	const b = $('#lv').getBoundingClientRect(), a = -(+S.rotate || 0) * Math.PI / 180;
+	const dx = e.clientX - (b.left + b.width / 2), dy = e.clientY - (b.top + b.height / 2);
+	const x = dx * Math.cos(a) - dy * Math.sin(a) + ov.clientWidth / 2, y = dx * Math.sin(a) + dy * Math.cos(a) + ov.clientHeight / 2;
+	const c = Math.floor(x / ov.clientWidth * S.cols), r = Math.floor(y / ov.clientHeight * S.rows);
+	return (c < 0 || r < 0 || c >= S.cols || r >= S.rows) ? -1 : r * S.cols + c;
+}
+ov.onpointerdown = e => { const i = cellAt(e); if (i < 0) return; paint = mask[i] ? 0 : 1; mask[i] = paint; ov.setPointerCapture(e.pointerId); draw(); };
+ov.onpointermove = e => { if (paint === null) return; const i = cellAt(e); if (i >= 0 && mask[i] !== paint) { mask[i] = paint; draw(); } };
+ov.onpointerup = () => { paint = null; };
+const setEdit = on => { editing = on; ov.classList.toggle('edit', on); $('#zonectl').hidden = !on; $('#zonebar').hidden = on; draw(); };
+$('#zonebtn').onclick = () => { saved = mask.slice(); setEdit(true); };
+$('#zcancel').onclick = () => { mask = saved; setEdit(false); };
+$('#zall').onclick = () => { mask = mask.map(() => 1); draw(); };
+$('#znone').onclick = () => { mask = mask.map(() => 0); draw(); };
+$('#zsave').onclick = async () => { S = await api('/api/settings', 'mask=' + tohex(mask)); setEdit(false); };
+
+function toast(msg) {
+	const t = document.createElement('div');
+	t.className = 'toast';
+	t.textContent = msg;
+	document.body.appendChild(t);
+	setTimeout(() => t.remove(), 2200);
+}
+$('#snapbtn').onclick = () => api('/api/snapshot', '').then(() => toast('Snapshot saved to Storage')).catch(err => toast('Snapshot failed: ' + err.message));
+
+// Status
+$('#recbtn').onclick = () => api('/api/record?on=' + (recording ? 0 : 1), '').then(poll1);
+function level(el, text, cls) {
+	el.textContent = text;
+	el.classList.remove('good', 'ok', 'meh', 'bad');
+	if (cls) el.classList.add(cls);
+}
+async function poll1() {
+	try {
+		const s = await api('/api/status');
+		recording = s.rec;
+		$('#dot').classList.add('ok');
+		const rp = $('#recp');
+		rp.textContent = `REC ${dur(s.rec_s)}${s.manual ? '' : ' motion'}`;
+		rp.hidden = !s.rec;
+		$('#mop').hidden = !s.motion;
+		level($('#fps'), `${s.fps} fps`, s.fps >= 20 ? 'good' : s.fps >= 12 ? 'ok' : s.fps >= 6 ? 'meh' : 'bad');
+		level($('#rssi'), `${s.rssi} dBm`, s.rssi >= -60 ? 'good' : s.rssi >= -67 ? 'ok' : s.rssi >= -75 ? 'meh' : 'bad');
+		// The chip is rated to 85C: yellow from 50C, orange from 60C, red from 70C.
+		level($('#temp'), `${Math.round(s.temp * 9 / 5 + 32)}°F`, s.temp >= 70 ? 'bad' : s.temp >= 60 ? 'meh' : s.temp >= 50 ? 'ok' : '');
+		$('#score').textContent = $('#showm').checked ? `motion score ${s.score} / ${S.min_cells || '?'}` : '';
+		const b = $('#recbtn');
+		b.querySelector('span').textContent = s.rec ? 'Stop' : 'Record';
+		b.classList.toggle('recon', s.rec);
+		if (s.sd) {
+			$('#sdbar').style.width = (s.sd_total ? s.sd_used / s.sd_total * 100 : 0) + '%';
+			$('#sdtxt').textContent = s.sd_total ? `${gb(s.sd_used)} / ${gb(s.sd_total)} GB` : 'reading card...';
+		} else $('#sdtxt').textContent = 'no SD card or card error, retrying';
+		cells = bits(s.cells);
+		draw();
+	} catch (e) {
+		$('#dot').classList.remove('ok');
+	}
+}
+(async function poll() { await poll1(); setTimeout(poll, 1000); })();
+
+// Settings dialog
+const dlg = $('#dlg'), form = $('#settings');
+function fill() {
+	form.framesize.innerHTML = S.sizes.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+	for (const el of form.elements) {
+		if (!el.name || !(el.name in S)) continue;
+		if (el.type === 'checkbox') el.checked = !!S[el.name]; else el.value = S[el.name];
+	}
+	$('#sensv').textContent = S.sensitivity;
+	form.notify_motion.disabled = form.notify_cooldown.disabled = !S.ntfy;
+	$('#ntfyhint').textContent = S.ntfy ? 'Push a snapshot through ntfy when motion starts' : 'Set NTFY_TOKEN in config.h to enable';
+	mask = bits(S.mask).slice(0, S.cols * S.rows);
+	relayout();
+}
+$('#gear').onclick = () => { fill(); $('#saved').textContent = ''; dlg.showModal(); };
+dlg.onclick = e => { if (e.target === dlg || e.target.closest('[data-close]')) dlg.close(); };
+form.sensitivity.oninput = () => { $('#sensv').textContent = form.sensitivity.value; };
+form.onsubmit = async e => {
+	e.preventDefault();
+	const p = new URLSearchParams();
+	for (const el of form.elements) if (el.name) p.set(el.name, el.type === 'checkbox' ? (el.checked ? 1 : 0) : el.value);
+	try {
+		S = await api('/api/settings', p.toString());
+		fill();
+		dlg.close();
+	} catch (err) {
+		$('#saved').textContent = 'Save failed: ' + err.message;
+	}
+};
+
+// Storage: clips and screenshots grouped by day
+let day = null;
+const isSnap = f => f.endsWith('.jpg');
+async function loadDays() {
+	const days = await api('/api/days');
+	if (!days.includes(day)) day = days[0] || null;
+	$('#days').innerHTML = days.map(d => `<button data-day="${d}" class="${d === day ? 'on' : ''}">${dayLabel(d)}</button>`).join('') || '<span class="muted small">None yet</span>';
+	loadClips();
+}
+async function loadClips() {
+	if (!day) { $('#dayname').textContent = 'Files'; $('#clips').innerHTML = '<div class="empty">No recordings or snapshots yet.</div>'; $('#bulk').hidden = true; return; }
+	$('#dayname').textContent = dayLabel(day);
+	const clips = await api('/api/files?d=' + day);
+	$('#clips').innerHTML = clips.map(c => {
+		const snap = isSnap(c.f);
+		const tag  = snap ? '<span class="tag s">snapshot</span>' : c.rec ? '<span class="tag l">recording</span>' : c.f[7] === 'm' ? '<span class="tag m">motion</span>' : '<span class="tag r">manual</span>';
+		const open = snap ? `<button class="btn sm primary" data-view="${c.f}">View</button>` : `<button class="btn sm primary" data-play="${c.f}">Play</button>`;
+		const act  = c.rec ? '' : `${open}<a class="btn sm" href="/api/download?d=${day}&f=${c.f}" download>Download</a><button class="btn sm danger" data-del="${c.f}">Delete</button>`;
+		const pick = c.rec ? '<input type="checkbox" class="ck" disabled>' : `<input type="checkbox" class="ck" data-pick="${c.f}"${sel.has(c.f) ? ' checked' : ''}>`;
+		const size = c.size >= 1048576 ? `${(c.size / 1048576).toFixed(1)} MB` : `${Math.ceil(c.size / 1024)} KB`;
+		const thumb = snap ? `<img class="thumb" loading="lazy" data-view="${c.f}" src="/api/image?d=${day}&f=${c.f}" alt="">` : '';
+		return `<div class="clip${P.f === c.f && P.d === day && P.open ? ' on' : ''}">${pick}${thumb}<span class="t">${clipTime(c.f)}</span>${tag}<span class="muted small">${size}</span><span class="act">${act}</span></div>`;
+	}).join('') || '<div class="empty">Nothing saved this day.</div>';
+	$('#bulk').hidden = !clips.some(c => !c.rec);
+	updateSel();
+}
+// Closing playback frees the file a moment later, so a delete that finds it in use is retried briefly.
+async function del(d, f) {
+	for (let i = 0; ; i++) {
+		try { return await api(`/api/delete?d=${d}&f=${f}`, ''); }
+		catch (err) { if (i >= 5 || !/in use/.test(err.message)) throw err; await new Promise(r => setTimeout(r, 400)); }
+	}
+}
+const sel = new Set(); // selected clip names for the current day, kept across list refreshes
+const picks = () => [...document.querySelectorAll('#clips input[data-pick]')];
+function updateSel() {
+	sel.clear();
+	picks().forEach(x => x.checked && sel.add(x.dataset.pick));
+	const n = sel.size;
+	$('#delsel').disabled = !n;
+	$('#delsel').textContent = n ? `Delete selected (${n})` : 'Delete selected';
+	$('#selall').checked = n && n === picks().length;
+}
+$('#selall').onchange = () => { picks().forEach(x => x.checked = $('#selall').checked); updateSel(); };
+$('#delsel').onclick = async () => {
+	const files = picks().filter(x => x.checked).map(x => x.dataset.pick);
+	if (!files.length || !confirm(`Delete ${files.length} file${files.length > 1 ? 's' : ''}?`)) return;
+	if (P.d === day && files.includes(P.f)) closePlayer();
+	for (const f of files) {
+		try { await del(day, f); } catch (err) { alert(`${clipTime(f)}: ${err.message}`); break; }
+	}
+	sel.clear();
+	loadDays();
+};
+$('#days').onclick = e => { const b = e.target.closest('button'); if (!b) return; day = b.dataset.day; sel.clear(); document.querySelectorAll('#days button').forEach(x => x.classList.toggle('on', x === b)); loadClips(); };
+$('#refresh').onclick = loadDays;
+$('#clips').onclick = async e => {
+	const t = e.target;
+	if (t.dataset.pick) return updateSel();
+	if (t.dataset.play) openClip(day, t.dataset.play);
+	if (t.dataset.view) openImage(day, t.dataset.view);
+	if (t.dataset.del && confirm(`Delete the ${clipTime(t.dataset.del)} ${isSnap(t.dataset.del) ? 'snapshot' : 'clip'}?`)) {
+		if (P.f === t.dataset.del && P.d === day) closePlayer();
+		try { await del(day, t.dataset.del); } catch (err) { alert(err.message); }
+		loadDays();
+	}
+};
+
+// Playback: the camera streams the clip paced to real time. Pausing shows one still frame;
+// seeking or changing speed reconnects at the new position.
+const pv = $('#pv'), pa = $('#pa'), seek = $('#seek');
+const P = {playing: false, frames: 0, open: false};
+const clipUrl = (ep, extra) => `/api/${ep}?d=${P.d}&f=${P.f}${extra}`;
+const pos = () => P.playing ? Math.min(P.frames - 1, P.n0 + Math.floor((performance.now() - P.t0) / 1000 * P.fps * P.speed)) : P.n;
+function tick() {
+	if (!P.frames) return;
+	const n = pos();
+	seek.value = n;
+	$('#ptime').textContent = `${dur(n / P.fps)} / ${dur(P.frames / P.fps)}`;
+	if (P.playing && n >= P.frames - 1) { pa.pause(); P.playing = false; P.n = P.frames - 1; $('#pplay').textContent = 'Play'; }
+}
+setInterval(tick, 200);
+async function openClip(d, f) {
+	stopPlay(false);
+	try {
+		const m = await api(`/api/clip?d=${d}&f=${f}`);
+		Object.assign(P, {d, f, frames: m.frames, fps: m.fps, w: m.w, h: m.h, audio: m.audio, n: 0, open: true});
+		seek.max = m.frames - 1;
+		$('#ptitle').textContent = `${dayLabel(d)}, ${clipTime(f)} · ${dur(m.frames / m.fps)}`;
+		$('#pdl').href = `/api/download?d=${d}&f=${f}`;
+		$('#pctl').hidden = false;
+		$('#player').hidden = false;
+		relayout();
+		loadClips();
+		window.scrollTo({top: 0, behavior: 'smooth'});
+		startPlay();
+	} catch (err) {
+		alert('Cannot play: ' + err.message);
+	}
+}
+function startPlay() {
+	if (P.n >= P.frames - 1) P.n = 0;
+	P.speed = +$('#speed').value;
+	P.n0 = P.n;
+	P.t0 = performance.now();
+	P.playing = true;
+	pv.src = clipUrl('play', `&n=${P.n}&speed=${P.speed}`);
+	if (P.audio) { pa.src = clipUrl('audio', `&n=${P.n}`); pa.playbackRate = P.speed; pa.play().catch(() => {}); }
+	$('#pplay').textContent = 'Pause';
+}
+function stopPlay(still = true) {
+	if (P.playing) P.n = pos();
+	P.playing = false;
+	pa.pause();
+	pa.removeAttribute('src');
+	pa.load(); // without this the browser keeps the WAV request open, holding a job slot and the file lock
+	if (still && P.frames) pv.src = clipUrl('frame', `&n=${P.n}`);
+	$('#pplay').textContent = 'Play';
+}
+function closePlayer() { stopPlay(false); Object.assign(P, {frames: 0, f: null, open: false}); pv.removeAttribute('src'); $('#player').hidden = true; }
+function openImage(d, f) {
+	stopPlay(false);
+	Object.assign(P, {d, f, frames: 0, open: true, w: 0, h: 0});
+	pv.onload = () => { if (!P.frames) { P.w = pv.naturalWidth; P.h = pv.naturalHeight; relayout(); } };
+	pv.src = `/api/image?d=${d}&f=${f}`;
+	$('#ptitle').textContent = `${dayLabel(d)}, ${clipTime(f)} snapshot`;
+	$('#pdl').href = `/api/download?d=${d}&f=${f}`;
+	$('#pctl').hidden = true;
+	$('#player').hidden = false;
+	relayout();
+	loadClips();
+	window.scrollTo({top: 0, behavior: 'smooth'});
+}
+$('#pplay').onclick = () => P.playing ? stopPlay() : startPlay();
+seek.oninput = () => { if (!P.playing) { P.n = +seek.value; pv.src = clipUrl('frame', `&n=${P.n}`); tick(); } };
+seek.onchange = () => { if (P.playing) { P.n = +seek.value; startPlay(); } };
+$('#speed').onchange = () => { if (P.playing) { P.n = pos(); startPlay(); } };
+$('#pclose').onclick = () => { closePlayer(); loadClips(); };
+
+api('/api/settings').then(s => { S = s; fill(); });
+showTab('live');
+</script>
+</body>
+</html>
