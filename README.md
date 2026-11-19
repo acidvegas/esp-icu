@@ -18,6 +18,8 @@ ESP-ICU *("I see you")* is tiny home security camera firmware for the Seeed XIAO
 - Image controls *(brightness, contrast, saturation, exposure, white balance, night mode)*
 - Recovers on its own from a failed or reseated SD card and from a stalled camera
 - HTTP basic auth on every page and API call
+- Up to 10 saved Wi-Fi networks, joined strongest first, managed from the web page
+- Access point mode on the BOOT button for setup without a network
 
 ## Hardware
 
@@ -53,11 +55,13 @@ Wi-Fi credentials, the web login and the ntfy token live in `main/config.h`, whi
 
 | Define       | Purpose                                                       |
 |--------------|---------------------------------------------------------------|
-| `WIFI_SSID`  | Network name                                                  |
-| `WIFI_PASS`  | Network password                                              |
+| `WIFI_SSID`  | First saved network, see [Wi-Fi](#wi-fi)                      |
+| `WIFI_PASS`  | Its password                                                  |
 | `WEB_USER`   | Login for the web page                                        |
 | `WEB_PASS`   | Password for the web page                                     |
 | `HOSTNAME`   | mDNS name *(`espicu` gives `espicu.local`)*                   |
+| `AP_SSID`    | Name of the access point the BOOT button turns on             |
+| `AP_PASS`    | Its password, 8 to 63 characters                              |
 | `NTFY_URL`   | ntfy server                                                   |
 | `NTFY_TOPIC` | Topic to publish to                                           |
 | `NTFY_TOKEN` | Access token with write access to the topic, empty to disable |
@@ -86,6 +90,18 @@ Everything else is set from the Settings panel in the web page and saved to flas
 | Mic gain         | 4       | Digital gain, 1 to 16                                         |
 | Timezone         | UTC0    | POSIX TZ string, e.g. `EST5EDT,M3.2.0,M11.1.0`                |
 | Wi-Fi TX power   | 15 dBm  | 8 to 20, see the notes below                                  |
+
+## Wi-Fi
+
+The camera keeps up to 10 saved networks in flash. On first boot the list holds only the `config.h` network; after that the list in flash is used and `config.h` is ignored. Each network that connects moves to the top, and the oldest drops off past 10.
+
+To connect, it scans and tries the saved networks in range from strongest to weakest, then the ones the scan did not see, since hidden networks never show up by name. When a network drops, it retries that one for 30 seconds before going through the list again.
+
+The Wi-Fi button in the web page shows the connection, lists the saved networks to connect to or remove, scans for nearby networks, and adds one by name *(for hidden networks)* with or without connecting to it.
+
+**Access point:** press BOOT to drop the current network and start the `AP_SSID` access point. Join it and open `http://192.168.4.1/`, then pick a network in the Wi-Fi dialog. Once it connects, the access point turns off after 10 seconds. Press BOOT again to turn it off by hand. Your device may drop off the access point while the camera joins a network on another channel; find the camera at `http://espicu.local/` on that network. An "AP" chip shows in the top bar while the access point is on.
+
+BOOT is reachable through the flexure on the case lid. Holding it while the board resets or powers up enters download mode instead.
 
 ## Storage
 
@@ -130,13 +146,18 @@ All endpoints need basic auth. Endpoints that change state also need an `X-Req` 
 | GET    | `/api/audio?d=&f=&n=`       | Clip audio as WAV, from frame `n`            |
 | GET    | `/api/download?d=&f=`       | Download a clip or snapshot                  |
 | POST   | `/api/delete?d=&f=`         | Delete a clip or snapshot                    |
+| GET    | `/api/wifi`                 | Connection, access point state, saved list   |
+| GET    | `/api/wifi/scan`            | Scan for nearby networks *(takes seconds)*   |
+| POST   | `/api/wifi/join`            | Join `ssid` with `pass`, saved once joined   |
+| POST   | `/api/wifi/add`             | Save `ssid` and `pass` without joining       |
+| POST   | `/api/wifi/forget`          | Remove `ssid` from the saved list            |
 
 Up to 4 streams and downloads can run at once.
 
 ## Notes
 
 - **Wi-Fi TX power defaults to 15 dBm.** With the stock flat antenna, transmitting at 20 dBm dropped upload throughput to 20 to 34 KB/s, while anything at or below 18 dBm ran at 525 to 667 KB/s. Other antennas may behave differently, so the cap is a setting. 20 MHz channel width also beat 40 MHz.
-- **The user LED cannot be used.** It shares GPIO21 with the SD card's DAT3 line, which has to stay high.
+- **The user LED cannot be used.** It shares GPIO21 with the SD card's DAT3 line, which has to stay high, so access point mode is shown in the web page instead.
 - **The SD card runs in SDMMC 1-bit mode at 40 MHz** on GPIO 7, 9 and 8. If a card was last used in SPI mode by other firmware, it stays in SPI mode until it loses power, so unplug the board once after flashing.
 - **SD transfers go through internal RAM.** The S3 cannot DMA between the SD card and PSRAM, so recording and playback stage data in small internal buffers and write in whole blocks.
 - The board runs warm with the camera on all the time. Give the case some airflow.
