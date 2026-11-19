@@ -106,6 +106,10 @@ static int nets_find(const char *ssid) {
 void wifi_add(const char *ssid, const char *pass) {
     xSemaphoreTake(lock, portMAX_DELAY);
     int i = nets_find(ssid);
+    if (!i && !strcmp(nets[0].pass, pass)) { // already first: skip the flash write
+        xSemaphoreGive(lock);
+        return;
+    }
     if (i < 0)
         i = nnets < MAX_NETS ? nnets++ : MAX_NETS - 1;
     memmove(&nets[1], &nets[0], i * sizeof(net_t));
