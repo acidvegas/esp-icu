@@ -144,10 +144,14 @@ dialog::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
 	<div class="chips">
 		<span class="chip rec" id="recp" hidden></span>
 		<span class="chip mo" id="mop" hidden>motion</span>
+		<span class="chip mo" id="app" hidden title="Access point is on, press BOOT to turn it off">AP esp-icu</span>
 		<span class="chip" id="fps">--</span>
 		<span class="chip" id="rssi">--</span>
 		<span class="chip" id="temp" title="ESP32 chip temperature">--</span>
 	</div>
+	<button class="icon" id="wbtn" title="Wi-Fi" aria-label="Wi-Fi">
+		<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1"/></svg>
+	</button>
 	<button class="icon" id="gear" title="Settings" aria-label="Settings">
 		<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
 	</button>
@@ -253,6 +257,29 @@ dialog::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
 	</form>
 </dialog>
 
+<!-- Wi-Fi -->
+<dialog id="wdlg">
+	<div class="dh"><b>Wi-Fi</b><span class="spacer"></span><button type="button" class="icon" data-close aria-label="Close">&#10005;</button></div>
+	<div class="db">
+		<div class="sec"><div id="wstat"></div><div id="wmsg" class="muted small"></div></div>
+		<div class="sec">
+			<h3>Saved networks</h3>
+			<div class="clips" id="wsaved"></div>
+			<div class="muted small" style="margin-top:8px">Keeps the last 10. The strongest one in range is joined first.</div>
+		</div>
+		<div class="sec">
+			<div class="row" style="margin-bottom:10px"><h3 style="margin:0">Nearby</h3><span class="spacer"></span><button class="btn sm" id="wscan">Scan</button></div>
+			<div class="clips" id="wlist"><div class="muted small">Scan to list networks in range.</div></div>
+		</div>
+		<div class="sec">
+			<h3>Add network</h3>
+			<label class="field"><span>Name<small>Type it for a hidden network</small></span><input id="wssid" maxlength="32" autocomplete="off"></label>
+			<label class="field"><span>Password<small>Empty for an open network</small></span><input id="wpass" type="password" maxlength="64" autocomplete="off"></label>
+			<div class="row"><span id="werr" class="muted small"></span><span class="spacer"></span><button class="btn" id="wadd">Save only</button><button class="btn primary" id="wjoin">Connect</button></div>
+		</div>
+	</div>
+</dialog>
+
 <script>
 const $ = s => document.querySelector(s);
 const api = (u, body) => fetch(u, body === undefined ? {} : {method: 'POST', headers: {'X-Req': '1', 'Content-Type': 'application/x-www-form-urlencoded'}, body})
@@ -260,6 +287,7 @@ const api = (u, body) => fetch(u, body === undefined ? {} : {method: 'POST', hea
 const bits = h => { const o = []; for (let i = 0; i < h.length; i += 2) { const b = parseInt(h.substr(i, 2), 16); for (let k = 0; k < 8; k++) o.push((b >> k) & 1); } return o; };
 const tohex = a => { let s = ''; for (let i = 0; i < a.length; i += 8) { let b = 0; for (let k = 0; k < 8; k++) if (a[i + k]) b |= 1 << k; s += b.toString(16).padStart(2, '0'); } return s; };
 const dur = s => { s = Math.floor(s); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = String(s % 60).padStart(2, '0'); return h ? `${h}:${String(m).padStart(2, '0')}:${x}` : `${m}:${x}`; };
+const esc = s => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 const gb = b => (b / 1073741824).toFixed(1);
 const dayLabel = d => new Date(+d.slice(0, 4), +d.slice(4, 6) - 1, +d.slice(6)).toLocaleDateString(undefined, {weekday: 'short', month: 'short', day: 'numeric'});
 const clipTime = f => `${f.slice(0, 2)}:${f.slice(2, 4)}:${f.slice(4, 6)}`;
@@ -365,8 +393,9 @@ async function poll1() {
 		rp.textContent = `REC ${dur(s.rec_s)}${s.manual ? '' : ' motion'}`;
 		rp.hidden = !s.rec;
 		$('#mop').hidden = !s.motion;
+		$('#app').hidden = !s.ap;
 		level($('#fps'), `${s.fps} fps`, s.fps >= 20 ? 'good' : s.fps >= 12 ? 'ok' : s.fps >= 6 ? 'meh' : 'bad');
-		level($('#rssi'), `${s.rssi} dBm`, s.rssi >= -60 ? 'good' : s.rssi >= -67 ? 'ok' : s.rssi >= -75 ? 'meh' : 'bad');
+		if (!s.rssi) level($('#rssi'), 'no Wi-Fi', s.ap ? '' : 'bad'); else level($('#rssi'), `${s.rssi} dBm`, s.rssi >= -60 ? 'good' : s.rssi >= -67 ? 'ok' : s.rssi >= -75 ? 'meh' : 'bad');
 		// The chip is rated to 85C: yellow from 50C, orange from 60C, red from 70C.
 		level($('#temp'), `${Math.round(s.temp * 9 / 5 + 32)}°F`, s.temp >= 70 ? 'bad' : s.temp >= 60 ? 'meh' : s.temp >= 50 ? 'ok' : '');
 		$('#score').textContent = $('#showm').checked ? `motion score ${s.score} / ${S.min_cells || '?'}` : '';
@@ -553,6 +582,57 @@ seek.oninput = () => { if (!P.playing) { P.n = +seek.value; pv.src = clipUrl('fr
 seek.onchange = () => { if (P.playing) { P.n = +seek.value; startPlay(); } };
 $('#speed').onchange = () => { if (P.playing) { P.n = pos(); startPlay(); } };
 $('#pclose').onclick = () => { closePlayer(); loadClips(); };
+
+// Wi-Fi dialog
+const wdlg = $('#wdlg'), form2 = p => new URLSearchParams(p).toString();
+let W = {saved: []}, scan = [], wtimer = null;
+function wshow(w) {
+	W = w;
+	$('#wstat').textContent = w.ap ? `Access point esp-icu is on${w.ssid ? `, also joined ${w.ssid} (${w.ip})` : ''}. Press BOOT to turn it off.`
+		: w.ssid ? `Connected to ${w.ssid} (${w.ip})` : 'Not connected';
+	$('#wmsg').textContent = w.msg;
+	$('#wsaved').innerHTML = w.saved.map((n, i) => `<div class="clip"><span class="t">${esc(n)}</span>${n === w.ssid ? '<span class="tag s">connected</span>' : ''}<span class="act">`
+		+ `<button class="btn sm" data-join="${i}">Connect</button><button class="btn sm danger" data-forget="${i}">Remove</button></span></div>`).join('')
+		|| '<div class="muted small">None saved. Press BOOT for the access point if you get locked out.</div>';
+}
+const wpoll = () => api('/api/wifi').then(wshow).catch(() => {
+	$('#wstat').textContent = 'Lost contact with the camera. If it joined another network, open http://espicu.local/ from that network.';
+});
+$('#wbtn').onclick = () => { $('#werr').textContent = ''; wpoll(); wdlg.showModal(); wtimer = setInterval(wpoll, 2000); };
+wdlg.onclose = () => clearInterval(wtimer);
+wdlg.onclick = e => { if (e.target === wdlg || e.target.closest('[data-close]')) wdlg.close(); };
+const wjoin = (ssid, pass) => api('/api/wifi/join', form2({ssid, pass})).then(wpoll).catch(err => { $('#werr').textContent = err.message; });
+$('#wsaved').onclick = e => {
+	const t = e.target, n = W.saved[t.dataset.join ?? t.dataset.forget];
+	if (t.dataset.join) wjoin(n, '');
+	if (t.dataset.forget && confirm(`Forget ${n}?`)) api('/api/wifi/forget', form2({ssid: n})).then(wshow);
+};
+$('#wscan').onclick = async () => {
+	$('#wscan').disabled = true;
+	$('#wlist').innerHTML = '<div class="muted small">Scanning...</div>';
+	try {
+		scan = await api('/api/wifi/scan');
+		$('#wlist').innerHTML = scan.map((n, i) => `<div class="clip"><span class="t">${esc(n.ssid)}</span><span class="muted small">${n.rssi} dBm${n.open ? ', open' : ''}</span>`
+			+ `${n.saved ? '<span class="tag s">saved</span>' : ''}<span class="act"><button class="btn sm${n.saved ? ' primary' : ''}" data-pick="${i}">${n.saved ? 'Connect' : 'Use'}</button></span></div>`).join('')
+			|| '<div class="muted small">Nothing found.</div>';
+	} catch (err) {
+		$('#wlist').innerHTML = `<div class="muted small">Scan failed: ${esc(err.message)}</div>`;
+	}
+	$('#wscan').disabled = false;
+};
+$('#wlist').onclick = e => {
+	const n = scan[e.target.dataset.pick];
+	if (!n) return;
+	if (n.saved) return wjoin(n.ssid, '');
+	$('#wssid').value = n.ssid;
+	$('#wpass').value = '';
+	if (n.open) wjoin(n.ssid, ''); else $('#wpass').focus();
+};
+$('#wjoin').onclick = () => { $('#werr').textContent = ''; wjoin($('#wssid').value, $('#wpass').value); };
+$('#wadd').onclick = () => {
+	$('#werr').textContent = '';
+	api('/api/wifi/add', form2({ssid: $('#wssid').value, pass: $('#wpass').value})).then(w => { wshow(w); $('#werr').textContent = 'Saved'; }).catch(err => { $('#werr').textContent = err.message; });
+};
 
 api('/api/settings').then(s => { S = s; fill(); });
 showTab('live');
