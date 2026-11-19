@@ -14,6 +14,7 @@
 #include "esp_log.h"
 #include "esp_netif.h"
 #include "esp_netif_sntp.h"
+#include "esp_timer.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
@@ -49,7 +50,7 @@ static net_t              nets[MAX_NETS]; // most recently connected first
 static int                nnets;
 static wifi_ap_record_t   recs[MAX_SCAN];
 static uint16_t           nrecs;
-static net_t              join;
+static net_t              join, last; // last: the network joined most recently, wifi task only
 static char               cur[33], msg[96];
 static volatile bool      ap_on;
 
@@ -166,6 +167,7 @@ static bool try_join(const net_t *n) {
         xSemaphoreTake(lock, portMAX_DELAY);
         strlcpy(cur, n->ssid, sizeof(cur));
         xSemaphoreGive(lock);
+        last = *n;
         wifi_add(n->ssid, n->pass);
         set_msg("connected to %s", n->ssid);
         return true;
@@ -251,8 +253,17 @@ static void wifi_task(void *arg) {
         } else if (!ap_on && !(b & B_IP)) {
             auto_connect();
         } else {
-            xEventGroupWaitBits(ev, B_REQ | B_DISC, pdFALSE, pdFALSE, portMAX_DELAY);
+            if (!(xEventGroupWaitBits(ev, B_REQ | B_DISC, pdFALSE, pdFALSE, portMAX_DELAY) & B_DISC))
+                continue;
             xEventGroupClearBits(ev, B_DISC);
+            // A dropped network usually comes back (router reboot, brief interference), so retry it
+            // for 30 seconds before the full scan. Skipped if it was forgotten while connected.
+            xSemaphoreTake(lock, portMAX_DELAY);
+            bool saved = nets_find(last.ssid) >= 0;
+            xSemaphoreGive(lock);
+            int64_t end = esp_timer_get_time() + 30000000;
+            while (saved && !ap_on && esp_timer_get_time() < end && !(xEventGroupGetBits(ev) & B_REQ) && !try_join(&last))
+                vTaskDelay(pdMS_TO_TICKS(1000));
         }
     }
 }
