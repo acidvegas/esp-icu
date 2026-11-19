@@ -11,6 +11,10 @@
 #define WEB_PASS  "change-me"
 #define HOSTNAME  "espicu"
 
+// Access point the BOOT button toggles. The password needs 8 to 63 characters.
+#define AP_SSID "esp-icu"
+#define AP_PASS "change-me-too"
+
 // Motion notifications through ntfy. Leave NTFY_TOKEN empty to disable them.
 #define NTFY_URL   "https://ntfy.example.com"
 #define NTFY_TOPIC "your-topic"
