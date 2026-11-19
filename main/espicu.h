@@ -112,5 +112,12 @@ uint32_t audio_read(uint64_t from, int16_t *dst, uint32_t n); // samples copied,
 
 esp_err_t web_start(void);
 float     chip_temp(void);
+void      wifi_start(void);
 void      wifi_apply_power(void);
+bool      wifi_ap_on(void);
+void      wifi_json(char *s);      // needs 4 KB
+void      wifi_scan_json(char *s); // needs 8 KB, blocks for the scan
+void      wifi_join(const char *ssid, const char *pass); // empty pass uses the saved one
+void      wifi_add(const char *ssid, const char *pass);
+void      wifi_forget(const char *ssid);
 void      notify_start(void);

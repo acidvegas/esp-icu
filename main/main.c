@@ -4,27 +4,18 @@
 // Tiny home security camera firmware for the Seeed XIAO ESP32-S3 Sense.
 
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
-#include "config.h"
-#include "esp_event.h"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
-#include "esp_netif.h"
-#include "esp_netif_sntp.h"
-#include "esp_timer.h"
 #include "driver/temperature_sensor.h"
-#include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "mdns.h"
 #include "espicu.h"
 #include "nvs_flash.h"
 
 static const char *TAG = "main";
 
 static temperature_sensor_handle_t tsens;
-static esp_timer_handle_t          reconnect;
 
 // ESP32-S3 die temperature in Celsius; the camera module has no sensor of its own.
 float chip_temp(void) {
@@ -32,64 +23,6 @@ float chip_temp(void) {
     if (tsens)
         temperature_sensor_get_celsius(tsens, &c);
     return c;
-}
-
-// Measured with the stock flat antenna: uploads ran at 20-34 KB/s at 19-20 dBm and 525-667 KB/s at
-// 8-18 dBm. The cap is a setting (default 15 dBm) so other antennas can be tuned from the UI.
-void wifi_apply_power(void) {
-    int dbm = cfg.tx_power < 8 ? 8 : cfg.tx_power > 20 ? 20 : cfg.tx_power;
-    esp_wifi_set_max_tx_power(dbm * 4);
-}
-
-static void do_reconnect(void *arg) {
-    esp_wifi_connect();
-}
-
-static void on_wifi(void *arg, esp_event_base_t base, int32_t id, void *data) {
-    if (base == WIFI_EVENT && id == WIFI_EVENT_STA_START) {
-        // 20 MHz beats 40 MHz on the crowded 2.4 GHz band.
-        esp_wifi_set_bandwidth(WIFI_IF_STA, WIFI_BW_HT20);
-        wifi_apply_power();
-        esp_wifi_connect();
-    } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
-        wifi_event_sta_disconnected_t *e = data;
-        ESP_LOGW(TAG, "wifi disconnected (reason %d), reconnecting", e->reason);
-        // Retry from a timer, not by sleeping here, so the event loop keeps running.
-        if (!esp_timer_is_active(reconnect))
-            esp_timer_start_once(reconnect, 1000000);
-    } else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
-        ip_event_got_ip_t *e = data;
-        ESP_LOGI(TAG, "online: http://" IPSTR "/ (http://%s.local/)", IP2STR(&e->ip_info.ip), HOSTNAME);
-    }
-}
-
-static void wifi_start(void) {
-    esp_netif_init();
-    esp_event_loop_create_default();
-    esp_netif_t *netif = esp_netif_create_default_wifi_sta();
-    esp_netif_set_hostname(netif, HOSTNAME);
-    const esp_timer_create_args_t ta = {.callback = do_reconnect, .name = "reconnect"};
-    esp_timer_create(&ta, &reconnect);
-    wifi_init_config_t init = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&init));
-    esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, on_wifi, NULL);
-    esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, on_wifi, NULL);
-    wifi_config_t wc = {0};
-    strlcpy((char *)wc.sta.ssid, WIFI_SSID, sizeof(wc.sta.ssid));
-    strlcpy((char *)wc.sta.password, WIFI_PASS, sizeof(wc.sta.password));
-    wc.sta.scan_method = WIFI_ALL_CHANNEL_SCAN; // the SSID is hidden, so probe every channel
-    esp_wifi_set_mode(WIFI_MODE_STA);
-    esp_wifi_set_config(WIFI_IF_STA, &wc);
-    esp_wifi_start();
-    // Modem sleep delays ACKs to beacon intervals, which throttles streaming.
-    esp_wifi_set_ps(WIFI_PS_NONE);
-
-    esp_sntp_config_t sntp = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
-    esp_netif_sntp_init(&sntp);
-
-    mdns_init();
-    mdns_hostname_set(HOSTNAME);
-    mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0);
 }
 
 void app_main(void) {

@@ -541,10 +541,10 @@ static esp_err_t status_get(httpd_req_t *r) {
     hex(motion_cells, MASK_BYTES, cells);
     snprintf(s, sizeof(s),
              "{\"rssi\":%d,\"fps\":%.0f,\"temp\":%.1f,\"rec\":%s,\"manual\":%s,\"rec_s\":%lld,"
-             "\"motion\":%s,\"score\":%u,\"cells\":\"%s\",\"sd\":%s,\"sd_total\":%llu,\"sd_used\":%llu}",
+             "\"motion\":%s,\"score\":%u,\"cells\":\"%s\",\"sd\":%s,\"sd_total\":%llu,\"sd_used\":%llu,\"ap\":%s}",
              ap.rssi, camera_fps(), chip_temp(), rec_open ? "true" : "false", rec_manual ? "true" : "false",
              rec_open ? (esp_timer_get_time() - rec_started_us) / 1000000 : 0LL, motion_active ? "true" : "false", motion_score, cells,
-             storage_ok() ? "true" : "false", total, used);
+             storage_ok() ? "true" : "false", total, used, wifi_ap_on() ? "true" : "false");
     return send_json(r, s);
 }
 
@@ -830,6 +830,93 @@ static esp_err_t delete_post(httpd_req_t *r) {
     return send_json(r, "{\"ok\":true}");
 }
 
+static bool read_body(httpd_req_t *r, char *body, size_t n) {
+    if (r->content_len >= n) {
+        fail(r, "413 Payload Too Large", "too large");
+        return false;
+    }
+    int len = 0;
+    while (len < (int)r->content_len) {
+        int got = httpd_req_recv(r, body + len, r->content_len - len);
+        if (got <= 0) {
+            fail(r, "400 Bad Request", "read failed");
+            return false;
+        }
+        len += got;
+    }
+    body[len] = 0;
+    return true;
+}
+
+// ssid (1-32 bytes) and pass (empty, or 8-64 for WPA2) from a form body.
+static bool net_form(httpd_req_t *r, char *ssid, char *pass) {
+    char body[512];
+    if (!read_body(r, body, sizeof(body)))
+        return false;
+    char s[100], p[200] = "";
+    if (httpd_query_key_value(body, "ssid", s, sizeof(s)) != ESP_OK)
+        s[0] = 0;
+    httpd_query_key_value(body, "pass", p, sizeof(p));
+    urldecode(s);
+    urldecode(p);
+    size_t sl = strlen(s), pl = strlen(p);
+    if (!sl || sl > 32 || (pl && (pl < 8 || pl > 64))) {
+        fail(r, "400 Bad Request", "SSID must be 1-32 bytes, password empty or 8-64 characters");
+        return false;
+    }
+    strcpy(ssid, s);
+    strcpy(pass, p);
+    return true;
+}
+
+static esp_err_t wifi_send(httpd_req_t *r, void (*fn)(char *), size_t n) {
+    char *s = malloc(n);
+    if (!s)
+        return fail(r, "500 Internal Server Error", "out of memory");
+    fn(s);
+    esp_err_t err = send_json(r, s);
+    free(s);
+    return err;
+}
+
+static esp_err_t wifi_get(httpd_req_t *r) {
+    if (!authorized(r))
+        return ESP_OK;
+    return wifi_send(r, wifi_json, 4096);
+}
+
+static esp_err_t wifi_scan_get(httpd_req_t *r) {
+    if (!authorized(r))
+        return ESP_OK;
+    return wifi_send(r, wifi_scan_json, 8192);
+}
+
+// Joins a network, kept in the saved list once it connects.
+static esp_err_t wifi_join_post(httpd_req_t *r) {
+    char ssid[33], pass[65];
+    if (!mutating(r) || !net_form(r, ssid, pass))
+        return ESP_OK;
+    wifi_join(ssid, pass);
+    return send_json(r, "{\"ok\":true}");
+}
+
+// Saves a network without joining it, e.g. a hidden one that is out of range right now.
+static esp_err_t wifi_add_post(httpd_req_t *r) {
+    char ssid[33], pass[65];
+    if (!mutating(r) || !net_form(r, ssid, pass))
+        return ESP_OK;
+    wifi_add(ssid, pass);
+    return wifi_send(r, wifi_json, 4096);
+}
+
+static esp_err_t wifi_forget_post(httpd_req_t *r) {
+    char ssid[33], pass[65];
+    if (!mutating(r) || !net_form(r, ssid, pass))
+        return ESP_OK;
+    wifi_forget(ssid);
+    return wifi_send(r, wifi_json, 4096);
+}
+
 esp_err_t web_start(void) {
     char   creds[96];
     size_t olen;
@@ -839,7 +926,7 @@ esp_err_t web_start(void) {
     auth[6 + olen] = 0;
 
     httpd_config_t c   = HTTPD_DEFAULT_CONFIG();
-    c.max_uri_handlers = 20;
+    c.max_uri_handlers = 24;
     c.max_open_sockets = 12;
     c.lru_purge_enable = true;
     c.stack_size       = 8192;
@@ -871,6 +958,11 @@ esp_err_t web_start(void) {
         {.uri = "/api/audio", .method = HTTP_GET, .handler = audio_get},
         {.uri = "/api/download", .method = HTTP_GET, .handler = download_get},
         {.uri = "/api/delete", .method = HTTP_POST, .handler = delete_post},
+        {.uri = "/api/wifi", .method = HTTP_GET, .handler = wifi_get},
+        {.uri = "/api/wifi/scan", .method = HTTP_GET, .handler = wifi_scan_get},
+        {.uri = "/api/wifi/join", .method = HTTP_POST, .handler = wifi_join_post},
+        {.uri = "/api/wifi/add", .method = HTTP_POST, .handler = wifi_add_post},
+        {.uri = "/api/wifi/forget", .method = HTTP_POST, .handler = wifi_forget_post},
     };
     for (size_t i = 0; i < sizeof(uris) / sizeof(uris[0]); i++)
         httpd_register_uri_handler(srv, &uris[i]);
